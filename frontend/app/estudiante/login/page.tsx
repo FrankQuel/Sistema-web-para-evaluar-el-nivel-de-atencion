@@ -20,12 +20,34 @@ export default function EstudianteLoginPage() {
     sexo: '', correo: '', telefono: '', usuario: '', contrasena: ''
   })
 
-  const handleLogin = () => {
-    if (!login.usuario || !login.contrasena) return alert('Completa todos los campos')
-    localStorage.setItem('userType', 'estudiante')
-    localStorage.setItem('userData', JSON.stringify({ usuario: login.usuario, tipo: 'estudiante' }))
-    router.push('/estudiante')
-  }
+  const handleLogin = async () => {
+    if (!login.usuario || !login.contrasena) {
+      alert('Completa todos los campos'); return;
+    }
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/login/?role=estudiante', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(login),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.detail || 'Error al iniciar sesión'); return; }
+
+      const normalized = {
+        usuario: data.user?.usuario ?? login.usuario, // por si usas el endpoint o el mock
+        role: data.role ?? 'admin',
+        id_us: data.user?.id_us ?? null,
+        profile_id: data.profile_id ?? null,
+      }
+      localStorage.setItem('userType', normalized.role); // 'admin'
+      localStorage.setItem('userData', JSON.stringify(normalized));
+      router.push('/estudiante/dashboard');
+    } catch (e) {
+      console.error(e);
+      alert('Error de conexión con el backend');
+    }
+  };
+
 
   const handleRegister = async () => {
     const allOk = Object.values(reg).every(v => String(v).trim() !== '')
