@@ -41,7 +41,12 @@ export default function AdminPage() {
       const raw = localStorage.getItem('userData')
       if (raw) {
         const parsed = JSON.parse(raw)
-        setUsername(parsed?.usuario || 'admin')
+        const u =
+          parsed?.usuario ??
+          parsed?.user?.usuario ?? // por si algún lugar guardó { user: { usuario } }
+          null
+
+        setUsername(u || '—')
       } else setUsername('admin')
     } catch {
       setUsername('admin')
@@ -234,7 +239,7 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Panel de Administración</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Administración</h1>
               <p className="text-sm text-gray-600">
                 Usuario: <span className="font-medium">{username ?? '...'}</span>
               </p>

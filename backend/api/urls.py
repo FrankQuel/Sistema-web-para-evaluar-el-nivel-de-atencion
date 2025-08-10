@@ -4,6 +4,7 @@ from .views import (
     EstudianteListCreateView, CursoListCreateView,
     ClaseListCreateView, ClaseDetailView,
     MatriculaListCreateView, MatriculaDetailView,
+    LoginView,
 )
 
 urlpatterns = [
@@ -19,4 +20,7 @@ urlpatterns = [
 
     path("matriculas/", MatriculaListCreateView.as_view(), name="matriculas-list-create"),
     path("matriculas/<int:pk>/", MatriculaDetailView.as_view(), name="matriculas-detail"),
+
+    # --- LOGIN ---
+    path("login/", LoginView.as_view(), name="login"),
 ]

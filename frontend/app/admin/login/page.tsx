@@ -13,12 +13,31 @@ export default function AdminLoginPage() {
   const [show, setShow] = useState(false)
   const [form, setForm] = useState({ usuario: '', contrasena: '' })
 
-  const handleLogin = () => {
-    if (!form.usuario || !form.contrasena) return alert('Completa todos los campos')
-    localStorage.setItem('userType', 'admin')
-    localStorage.setItem('userData', JSON.stringify({ usuario: form.usuario, tipo: 'admin' }))
-    router.push('/admin/dashboard')
-  }
+  const handleLogin = async () => {
+    if (!form.usuario || !form.contrasena) { alert('Completa todos los campos'); return; }
+    try {
+      const res = await fetch('http://127.0.0.1:8000/api/login/?role=admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.detail || 'Error al iniciar sesión'); return; }
+      
+      const normalized = {
+        usuario: data.user?.usuario ?? form.usuario, // por si usas el endpoint o el mock
+        role: data.role ?? 'admin',
+        id_us: data.user?.id_us ?? null,
+        profile_id: data.profile_id ?? null,
+      }
+      localStorage.setItem('userType', normalized.role); // 'admin'
+      localStorage.setItem('userData', JSON.stringify(normalized));
+      router.push('/admin/dashboard');
+    } catch (e) {
+      console.error(e);
+      alert('Error de conexión con el backend');
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
