@@ -1,436 +1,322 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Users, BookOpen, GraduationCap, Plus, Edit, Trash2, LogOut } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Users, GraduationCap, BookOpen, LogOut } from 'lucide-react'
 import Link from 'next/link'
 
-export default function AdminDashboard() {
-  const [docentes, setDocentes] = useState([
-    { id: 1, nombre: 'Juan', apellido: 'Pérez', email: 'juan@email.com', usuario: 'jperez' },
-    { id: 2, nombre: 'María', apellido: 'García', email: 'maria@email.com', usuario: 'mgarcia' }
-  ])
+import DocentesTab from '@/app/admin/gestion/docente'
+import EstudiantesTab from '@/app/admin/gestion/estudiante'
+import CursosTab from '@/app/admin/gestion/curso'
+import AsignacionesTab from '@/app/admin/gestion/asignaciones'
 
-  const [estudiantes, setEstudiantes] = useState([
-    { id: 1, nombre: 'Ana', apellido: 'López', email: 'ana@email.com', usuario: 'alopez' },
-    { id: 2, nombre: 'Carlos', apellido: 'Ruiz', email: 'carlos@email.com', usuario: 'cruiz' }
-  ])
+import type { Docente, Estudiante, Curso } from '@/app/types'
+import {
+  // DOCENTES
+  listDocentes, createDocente, updateDocente, deleteDocente,
+  // ESTUDIANTES
+  listEstudiantes, createEstudiante, updateEstudiante, deleteEstudiante,
+  // CURSOS
+  listCursos, createCurso, updateCurso, deleteCurso,
+  // ASIGNACIONES (clases/matrículas)
+  listClases, createClase, createMatricula,
+} from '@/app/lib/api'
 
-  const [cursos, setCursos] = useState([
-    { id: 1, nombre: 'Matemáticas Básicas', descripcion: 'Curso de matemáticas nivel básico', docente: 'Juan Pérez' },
-    { id: 2, nombre: 'Historia Universal', descripcion: 'Curso de historia mundial', docente: 'María García' }
-  ])
+// Tipos de payload para los Tabs
+type DocenteCreate = Omit<Docente, 'id_dce' | 'id_us' | 'id_admin'> & {
+  usuario_us: string
+  contrasena_us: string
+}
+type EstudianteCreate = Omit<Estudiante, 'id_est' | 'id_us' | 'id_admin'> & {
+  usuario_us: string
+  contrasena_us: string
+}
+type CursoCreate = Omit<Curso, 'id_cur'>
 
-  const [newDocente, setNewDocente] = useState({
-    nombre: '', apellido: '', email: '', usuario: '', contraseña: ''
-  })
+export default function AdminPage() {
+  const [username, setUsername] = useState<string | null>(null)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('userData')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setUsername(parsed?.usuario || 'admin')
+      } else setUsername('admin')
+    } catch {
+      setUsername('admin')
+    }
+  }, [])
 
-  const [newEstudiante, setNewEstudiante] = useState({
-    nombre: '', apellido: '', email: '', usuario: '', contraseña: ''
-  })
+  // Estado principal
+  const [docentes, setDocentes] = useState<Docente[]>([])
+  const [estudiantes, setEstudiantes] = useState<Estudiante[]>([])
+  const [cursos, setCursos] = useState<Curso[]>([])
+  const [clases, setClases] = useState<{ id_cl: number; nombre_cl: string }[]>([])
 
-  const [newCurso, setNewCurso] = useState({
-    nombre: '', descripcion: '', docenteId: ''
-  })
-
-  const handleAddDocente = () => {
-    const id = docentes.length + 1
-    setDocentes([...docentes, { id, ...newDocente }])
-    setNewDocente({ nombre: '', apellido: '', email: '', usuario: '', contraseña: '' })
+  // ================= DOCENTES =================
+  const listDocentesHandler = async () => {
+    const data = await listDocentes()
+    setDocentes(
+      data.map((d: any) => ({
+        id_dce: d.id_dce,
+        ci_dce: d.ci ?? null,
+        nombre_dce: d.nombre,
+        apellido_dce: d.apellido,
+        fechanac_dce: d.fechanac,
+        sexo_dce: d.sexo,
+        correo_dce: d.correo,
+        telefono_dce: d.telefono ?? '',
+        titulo_dce: d.titulo ?? '',
+        id_us: d.id_us ?? null,
+        id_admin: 1,
+        usuario_us: d.usuario_us,
+      }))
+    )
   }
 
-  const handleAddEstudiante = () => {
-    const id = estudiantes.length + 1
-    setEstudiantes([...estudiantes, { id, ...newEstudiante }])
-    setNewEstudiante({ nombre: '', apellido: '', email: '', usuario: '', contraseña: '' })
+  const addDocente = async (p: DocenteCreate) => {
+    const created = await createDocente({
+      ci: p.ci_dce ?? null,
+      nombre: p.nombre_dce,
+      apellido: p.apellido_dce,
+      fechanac: p.fechanac_dce,
+      sexo: (p.sexo_dce || '').toLowerCase().slice(0, 1),
+      correo: p.correo_dce,
+      telefono: p.telefono_dce || null,
+      titulo: p.titulo_dce || null,
+      usuario: p.usuario_us,
+      contrasena: p.contrasena_us,
+    })
+    setDocentes(prev => [
+      ...prev,
+      {
+        id_dce: created.id_dce,
+        ci_dce: created.ci ?? null,
+        nombre_dce: created.nombre,
+        apellido_dce: created.apellido,
+        fechanac_dce: created.fechanac,
+        sexo_dce: created.sexo,
+        correo_dce: created.correo,
+        telefono_dce: created.telefono ?? '',
+        titulo_dce: created.titulo ?? '',
+        id_us: created.id_us ?? null,
+        id_admin: 1,
+        usuario_us: created.usuario_us ?? p.usuario_us,
+      } as Docente,
+    ])
   }
 
-  const handleAddCurso = () => {
-    const id = cursos.length + 1
-    const docente = docentes.find(d => d.id === parseInt(newCurso.docenteId))
-    setCursos([...cursos, { 
-      id, 
-      nombre: newCurso.nombre, 
-      descripcion: newCurso.descripcion, 
-      docente: `${docente?.nombre} ${docente?.apellido}` 
-    }])
-    setNewCurso({ nombre: '', descripcion: '', docenteId: '' })
+  const updateDocenteHandler = async (id: number, p: Partial<Docente>) => {
+    const updated = await updateDocente(id, {
+      ci: p.ci_dce ?? null,
+      nombre: p.nombre_dce,
+      apellido: p.apellido_dce,
+      fechanac: p.fechanac_dce,
+      sexo: (p.sexo_dce || '').toLowerCase().slice(0, 1),
+      correo: p.correo_dce,
+      telefono: p.telefono_dce ?? null,
+      titulo: p.titulo_dce ?? null,
+    })
+    setDocentes(prev => prev.map(d =>
+      d.id_dce === id
+        ? {
+            ...d,
+            ci_dce: updated.ci ?? null,
+            nombre_dce: updated.nombre,
+            apellido_dce: updated.apellido,
+            fechanac_dce: updated.fechanac,
+            sexo_dce: updated.sexo,
+            correo_dce: updated.correo,
+            telefono_dce: updated.telefono ?? '',
+            titulo_dce: updated.titulo ?? '',
+            usuario_us: updated.usuario_us ?? d.usuario_us,
+          }
+        : d
+    ))
+  }
+
+  const deleteDocenteHandler = async (id: number) => {
+    await deleteDocente(id)
+    setDocentes(prev => prev.filter(d => d.id_dce !== id))
+  }
+
+  // ================= ESTUDIANTES =================
+  const listEstudiantesHandler = async () => {
+    const data = await listEstudiantes()
+    setEstudiantes(
+      data.map((e: any) => ({
+        id_est: e.id_est,
+        ci_est: e.ci ?? null,
+        nombre_est: e.nombre,
+        apellido_est: e.apellido,
+        fechanac_est: e.fechanac,
+        sexo_est: e.sexo,
+        correo_est: e.correo,
+        telefono_est: e.telefono ?? '',
+        id_us: e.id_us ?? null,
+        id_admin: 1,
+        usuario_us: e.usuario_us ?? undefined,
+      }))
+    )
+  }
+
+  const addEstudiante = async (p: EstudianteCreate) => {
+    await createEstudiante({
+      ci: p.ci_est ?? null,
+      nombre: p.nombre_est,
+      apellido: p.apellido_est,
+      fechanac: p.fechanac_est,
+      sexo: (p.sexo_est || '').toLowerCase().slice(0, 1),
+      correo: p.correo_est,
+      telefono: p.telefono_est || null,
+      usuario: p.usuario_us,
+      contrasena: p.contrasena_us,
+    })
+  }
+
+  const updateEstudianteHandler = async (id: number, p: Partial<Estudiante>) => {
+    await updateEstudiante(id, {
+      ci: p.ci_est ?? null,
+      nombre: p.nombre_est,
+      apellido: p.apellido_est,
+      fechanac: p.fechanac_est,
+      sexo: (p.sexo_est || '').toLowerCase().slice(0, 1),
+      correo: p.correo_est,
+      telefono: p.telefono_est ?? null,
+    })
+  }
+
+  const deleteEstudianteHandler = async (id: number) => {
+    await deleteEstudiante(id)
+    setEstudiantes(prev => prev.filter(e => e.id_est !== id))
+  }
+
+  // ================= CURSOS =================
+  const listCursosHandler = async () => {
+    const data = await listCursos()
+    setCursos(data as Curso[])
+  }
+
+  const addCurso = async (p: CursoCreate) => {
+    await createCurso({ codigo_cur: p.codigo_cur, nombre_cur: p.nombre_cur })
+  }
+
+  const updateCursoHandler = async (id: number, p: Partial<Curso>) => {
+    await updateCurso(id, { codigo_cur: p.codigo_cur, nombre_cur: p.nombre_cur })
+  }
+
+  const deleteCursoHandler = async (id: number) => {
+    await deleteCurso(id)
+    setCursos(prev => prev.filter(c => c.id_cur !== id))
+  }
+
+  // ================= CLASES / MATRÍCULAS =================
+  const listClasesHandler = async () => {
+    const data = await listClases()
+    setClases(data.map((c: any) => ({ id_cl: c.id_cl, nombre_cl: c.nombre_cl })))
+  }
+
+  const crearClaseHandler = async (input: { nombre: string; id_cur: number; id_dce: number }) => {
+    await createClase({ nombre_cl: input.nombre, id_cur: input.id_cur, id_dce: input.id_dce })
+    await listClasesHandler()
+  }
+
+  const matricularHandler = async (input: { id_est: number; id_cl: number }) => {
+    await createMatricula({ id_est: input.id_est, id_cl: input.id_cl })
+    // puedes refrescar una lista de matrículas si la tuvieras
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header superior */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
-            <h1 className="text-2xl font-bold text-gray-900">Panel de Administración</h1>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Panel de Administración</h1>
+              <p className="text-sm text-gray-600">
+                Usuario: <span className="font-medium">{username ?? '...'}</span>
+              </p>
+            </div>
             <Link href="/">
-              <Button variant="outline" className="flex items-center gap-2">
+              <button className="inline-flex items-center gap-2 rounded-md border px-3 py-2 hover:bg-gray-50">
                 <LogOut className="w-4 h-4" />
                 Cerrar Sesión
-              </Button>
+              </button>
             </Link>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
+        {/* Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Docentes</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{docentes.length}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold">{docentes.length}</div></CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Estudiantes</CardTitle>
               <GraduationCap className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{estudiantes.length}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold">{estudiantes.length}</div></CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardHeader className="flex items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Total Cursos</CardTitle>
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{cursos.length}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold">{cursos.length}</div></CardContent>
           </Card>
         </div>
 
-        {/* Management Tabs */}
         <Tabs defaultValue="docentes" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="docentes">Gestión de Docentes</TabsTrigger>
-            <TabsTrigger value="estudiantes">Gestión de Estudiantes</TabsTrigger>
-            <TabsTrigger value="cursos">Gestión de Cursos</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="docentes">Docentes</TabsTrigger>
+            <TabsTrigger value="estudiantes">Estudiantes</TabsTrigger>
+            <TabsTrigger value="cursos">Cursos</TabsTrigger>
+            <TabsTrigger value="asignaciones">Asignaciones</TabsTrigger>
           </TabsList>
 
-          {/* Gestión de Docentes */}
-          <TabsContent value="docentes" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Docentes</h2>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
-                    Agregar Docente
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Agregar Nuevo Docente</DialogTitle>
-                    <DialogDescription>
-                      Completa la información del nuevo docente
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="docente-nombre">Nombre</Label>
-                        <Input
-                          id="docente-nombre"
-                          value={newDocente.nombre}
-                          onChange={(e) => setNewDocente({...newDocente, nombre: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="docente-apellido">Apellido</Label>
-                        <Input
-                          id="docente-apellido"
-                          value={newDocente.apellido}
-                          onChange={(e) => setNewDocente({...newDocente, apellido: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="docente-email">Email</Label>
-                      <Input
-                        id="docente-email"
-                        type="email"
-                        value={newDocente.email}
-                        onChange={(e) => setNewDocente({...newDocente, email: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="docente-usuario">Usuario</Label>
-                      <Input
-                        id="docente-usuario"
-                        value={newDocente.usuario}
-                        onChange={(e) => setNewDocente({...newDocente, usuario: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="docente-password">Contraseña</Label>
-                      <Input
-                        id="docente-password"
-                        type="password"
-                        value={newDocente.contraseña}
-                        onChange={(e) => setNewDocente({...newDocente, contraseña: e.target.value})}
-                      />
-                    </div>
-                    <Button onClick={handleAddDocente} className="w-full">
-                      Agregar Docente
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Apellido</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Usuario</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {docentes.map((docente) => (
-                    <TableRow key={docente.id}>
-                      <TableCell>{docente.id}</TableCell>
-                      <TableCell>{docente.nombre}</TableCell>
-                      <TableCell>{docente.apellido}</TableCell>
-                      <TableCell>{docente.email}</TableCell>
-                      <TableCell>{docente.usuario}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+          <TabsContent value="docentes">
+            <DocentesTab
+              docentes={docentes}
+              onAdd={addDocente}
+              onList={listDocentesHandler}
+              onUpdate={updateDocenteHandler}
+              onDelete={deleteDocenteHandler}
+            />
           </TabsContent>
 
-          {/* Gestión de Estudiantes */}
-          <TabsContent value="estudiantes" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Estudiantes</h2>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
-                    Agregar Estudiante
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Agregar Nuevo Estudiante</DialogTitle>
-                    <DialogDescription>
-                      Completa la información del nuevo estudiante
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="estudiante-nombre">Nombre</Label>
-                        <Input
-                          id="estudiante-nombre"
-                          value={newEstudiante.nombre}
-                          onChange={(e) => setNewEstudiante({...newEstudiante, nombre: e.target.value})}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="estudiante-apellido">Apellido</Label>
-                        <Input
-                          id="estudiante-apellido"
-                          value={newEstudiante.apellido}
-                          onChange={(e) => setNewEstudiante({...newEstudiante, apellido: e.target.value})}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="estudiante-email">Email</Label>
-                      <Input
-                        id="estudiante-email"
-                        type="email"
-                        value={newEstudiante.email}
-                        onChange={(e) => setNewEstudiante({...newEstudiante, email: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="estudiante-usuario">Usuario</Label>
-                      <Input
-                        id="estudiante-usuario"
-                        value={newEstudiante.usuario}
-                        onChange={(e) => setNewEstudiante({...newEstudiante, usuario: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="estudiante-password">Contraseña</Label>
-                      <Input
-                        id="estudiante-password"
-                        type="password"
-                        value={newEstudiante.contraseña}
-                        onChange={(e) => setNewEstudiante({...newEstudiante, contraseña: e.target.value})}
-                      />
-                    </div>
-                    <Button onClick={handleAddEstudiante} className="w-full">
-                      Agregar Estudiante
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Apellido</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Usuario</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {estudiantes.map((estudiante) => (
-                    <TableRow key={estudiante.id}>
-                      <TableCell>{estudiante.id}</TableCell>
-                      <TableCell>{estudiante.nombre}</TableCell>
-                      <TableCell>{estudiante.apellido}</TableCell>
-                      <TableCell>{estudiante.email}</TableCell>
-                      <TableCell>{estudiante.usuario}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+          <TabsContent value="estudiantes">
+            <EstudiantesTab
+              estudiantes={estudiantes}
+              onAdd={addEstudiante}
+              onList={listEstudiantesHandler}
+              onUpdate={updateEstudianteHandler}
+              onDelete={deleteEstudianteHandler}
+            />
           </TabsContent>
 
-          {/* Gestión de Cursos */}
-          <TabsContent value="cursos" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Cursos</h2>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
-                    Agregar Curso
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Agregar Nuevo Curso</DialogTitle>
-                    <DialogDescription>
-                      Completa la información del nuevo curso
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="curso-nombre">Nombre del Curso</Label>
-                      <Input
-                        id="curso-nombre"
-                        value={newCurso.nombre}
-                        onChange={(e) => setNewCurso({...newCurso, nombre: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="curso-descripcion">Descripción</Label>
-                      <Input
-                        id="curso-descripcion"
-                        value={newCurso.descripcion}
-                        onChange={(e) => setNewCurso({...newCurso, descripcion: e.target.value})}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="curso-docente">Docente</Label>
-                      <select
-                        id="curso-docente"
-                        className="w-full p-2 border rounded-md"
-                        value={newCurso.docenteId}
-                        onChange={(e) => setNewCurso({...newCurso, docenteId: e.target.value})}
-                      >
-                        <option value="">Seleccionar docente</option>
-                        {docentes.map((docente) => (
-                          <option key={docente.id} value={docente.id}>
-                            {docente.nombre} {docente.apellido}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <Button onClick={handleAddCurso} className="w-full">
-                      Agregar Curso
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
+          <TabsContent value="cursos">
+            <CursosTab
+              cursos={cursos}
+              onAdd={addCurso}
+              onList={listCursosHandler}
+              onUpdate={updateCursoHandler}
+              onDelete={deleteCursoHandler}
+            />
+          </TabsContent>
 
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Docente</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cursos.map((curso) => (
-                    <TableRow key={curso.id}>
-                      <TableCell>{curso.id}</TableCell>
-                      <TableCell>{curso.nombre}</TableCell>
-                      <TableCell>{curso.descripcion}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{curso.docente}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="outline" size="sm">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
+          <TabsContent value="asignaciones">
+            <AsignacionesTab
+
+            />
           </TabsContent>
         </Tabs>
       </div>
