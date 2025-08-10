@@ -87,7 +87,7 @@ class Curso(models.Model):
 class Clase(models.Model):
     id_cl = models.BigAutoField(primary_key=True)
     nombre_cl = models.CharField(max_length=30)
-    video_cl = models.CharField(max_length=50, blank=True)
+    video_cl = models.CharField(max_length=255, blank=True)
     id_cur = models.ForeignKey('Curso', models.DO_NOTHING, db_column='id_cur')
     id_dce = models.ForeignKey('Docente', models.DO_NOTHING, db_column='id_dce')
 

@@ -40,6 +40,16 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/estudiante/dashboard/page.js"
+    ],
+    "/docente/curso/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/docente/curso/[id]/page.js"
+    ],
+    "/docente/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/docente/page.js"
     ]
   }
 }

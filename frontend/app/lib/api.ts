@@ -2,6 +2,7 @@
 
 // Base del backend (ej: http://127.0.0.1:8000)
 const BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:8000';
+const API = 'http://127.0.0.1:8000/api';
 
 /* ===== Utilidades ===== */
 async function safeJson<T>(res: Response): Promise<T> {
@@ -151,12 +152,13 @@ async function json<T>(r: Response){ const t=await r.text(); const d=t?JSON.pars
 
 // ===== CLASES =====
 // listar clases con filtros
-export function listClases(filter?: { id_cur?: number; id_dce?: number }) {
-  const qs = new URLSearchParams()
-  if (filter?.id_cur) qs.set('id_cur', String(filter.id_cur))
-  if (filter?.id_dce) qs.set('id_dce', String(filter.id_dce))
-  const url = `${process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:8000'}/api/clases/${qs.toString() ? `?${qs}` : ''}`
-  return fetch(url, { cache: 'no-store' }).then(r => r.json())
+export async function listClases(params?: { id_cur?: number; id_dce?: number }) {
+  const q = new URLSearchParams();
+  if (params?.id_cur) q.append('id_cur', String(params.id_cur));
+  if (params?.id_dce) q.append('id_dce', String(params.id_dce));
+  const res = await fetch(`${API}/clases/${q.toString() ? `?${q.toString()}` : ''}`);
+  if (!res.ok) throw new Error('Error listClases');
+  return res.json();
 }
 
 export function createClase(body: { nombre_cl: string; id_cur: number; id_dce: number }) {
@@ -165,6 +167,16 @@ export function createClase(body: { nombre_cl: string; id_cur: number; id_dce: n
     .then(async r => (r.ok ? r.json() : Promise.reject(await r.text())))
 }
 
+// actualizar clase (nombre / video)
+export async function updateClase(id: number, payload: { nombre_cl?: string; video_cl?: string }) {
+  const res = await fetch(`${API}/clases/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Error updateClase');
+  return res.json();
+}
 
 // ===== MATRÍCULAS (estudiante -> clase) =====
 export const createMatricula = (p: {
@@ -180,3 +192,9 @@ export const createMatricula = (p: {
     if (!r.ok) throw new Error(typeof j === 'string' ? j : JSON.stringify(j));
     return j;
   });
+
+  export async function listMatriculas() {
+  const res = await fetch(`${API}/matriculas/`);
+  if (!res.ok) throw new Error('Error listMatriculas');
+  return res.json();
+}
