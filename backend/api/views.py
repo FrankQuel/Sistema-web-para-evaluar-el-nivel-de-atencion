@@ -1,38 +1,56 @@
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .models import Usuario, Estudiante
-from .serializers import UsuarioSerializer, EstudianteSerializer
+from rest_framework import generics
+from rest_framework.generics import ListCreateAPIView
+from .models import Docente, Estudiante, Curso, Clase, Matricula
+from .serializers import DocenteRegistroSerializer, EstudianteRegistroSerializer, CursoSerializer, ClaseSerializer, MatriculaSerializer
 
-class RegistroEstudianteAPIView(APIView):
-    def post(self, request):
-        # Guardar primero el usuario
-        usuario_data = {
-            "usuario_us": request.data.get("usuario"),
-            "contrasena_us": request.data.get("contrasena")
-        }
-        usuario_serializer = UsuarioSerializer(data=usuario_data)
-        if usuario_serializer.is_valid():
-            usuario = usuario_serializer.save()
-        else:
-            return Response(usuario_serializer.errors, status=400)
+# DOCENTES (ya estaban bien)
+class DocenteListCreateView(generics.ListCreateAPIView):
+    queryset = Docente.objects.select_related('id_us').all()
+    serializer_class = DocenteRegistroSerializer
 
-        # Guardar el estudiante
-        estudiante_data = {
-            "ci_est": request.data.get("ci"),
-            "nombre_est": request.data.get("nombre"),
-            "apellido_est": request.data.get("apellido"),
-            "fechanac_est": request.data.get("fechanac"),
-            "sexo_est": request.data.get("sexo"),
-            "correo_est": request.data.get("correo"),
-            "telefono_est": request.data.get("telefono"),
-            "id_us": usuario.id_us,
-            "id_admin": 1
-        }
-        estudiante_serializer = EstudianteSerializer(data=estudiante_data)
-        if estudiante_serializer.is_valid():
-            estudiante_serializer.save()
-            return Response({"message": "Estudiante registrado con éxito"}, status=201)
-        else:
-            usuario.delete()  # Deshacer si estudiante falla
-            return Response(estudiante_serializer.errors, status=400)
+class DocenteDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Docente.objects.select_related('id_us').all()
+    serializer_class = DocenteRegistroSerializer
+
+# ESTUDIANTES
+class EstudianteListCreateView(generics.ListCreateAPIView):
+    queryset = Estudiante.objects.select_related('id_us').all()
+    serializer_class = EstudianteRegistroSerializer
+
+class EstudianteDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Estudiante.objects.select_related('id_us').all()
+    serializer_class = EstudianteRegistroSerializer
+
+# CURSOS
+class CursoListCreateView(generics.ListCreateAPIView):
+    queryset = Curso.objects.all()
+    serializer_class = CursoSerializer
+
+class CursoDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Curso.objects.all()
+    serializer_class = CursoSerializer
+
+class ClaseListCreateView(ListCreateAPIView):
+    serializer_class = ClaseSerializer
+
+    def get_queryset(self):
+        qs = Clase.objects.select_related('id_cur','id_dce').all()
+        id_cur = self.request.query_params.get('id_cur')
+        id_dce = self.request.query_params.get('id_dce')
+        if id_cur:
+            qs = qs.filter(id_cur=id_cur)
+        if id_dce:
+            qs = qs.filter(id_dce=id_dce)
+        return qs
+
+class ClaseDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Clase.objects.select_related('id_cur', 'id_dce')
+    serializer_class = ClaseSerializer
+
+class MatriculaListCreateView(generics.ListCreateAPIView):
+    queryset = Matricula.objects.select_related('id_est', 'id_cl', 'id_cl__id_cur', 'id_cl__id_dce')
+    serializer_class = MatriculaSerializer
+
+class MatriculaDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Matricula.objects.select_related('id_est', 'id_cl', 'id_cl__id_cur', 'id_cl__id_dce')
+    serializer_class = MatriculaSerializer

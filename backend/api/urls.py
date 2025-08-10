@@ -1,6 +1,22 @@
 from django.urls import path
-from .views import RegistroEstudianteAPIView
+from .views import (
+    DocenteListCreateView, DocenteDetailView,
+    EstudianteListCreateView, CursoListCreateView,
+    ClaseListCreateView, ClaseDetailView,
+    MatriculaListCreateView, MatriculaDetailView,
+)
 
 urlpatterns = [
-    path('registro-estudiante/', RegistroEstudianteAPIView.as_view(), name='registro-estudiante'),
+    # existentes...
+    path("docentes/", DocenteListCreateView.as_view(), name="docentes-create"),
+    path("docentes/<int:pk>/", DocenteDetailView.as_view(), name="docente-detail"),
+    path("estudiantes/", EstudianteListCreateView.as_view(), name="estudiantes-create"),
+    path("cursos/", CursoListCreateView.as_view(), name="cursos-create"),
+
+    # nuevos (asignaciones)
+    path("clases/", ClaseListCreateView.as_view(), name="clases-list-create"),
+    path("clases/<int:pk>/", ClaseDetailView.as_view(), name="clases-detail"),
+
+    path("matriculas/", MatriculaListCreateView.as_view(), name="matriculas-list-create"),
+    path("matriculas/<int:pk>/", MatriculaDetailView.as_view(), name="matriculas-detail"),
 ]
