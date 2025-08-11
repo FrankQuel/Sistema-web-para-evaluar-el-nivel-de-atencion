@@ -6,6 +6,8 @@ from .views import (
     MatriculaListCreateView, MatriculaDetailView,
     LoginView,
 )
+from .views import EvaluarAtencionView
+
 
 urlpatterns = [
     # existentes...
@@ -23,4 +25,6 @@ urlpatterns = [
 
     # --- LOGIN ---
     path("login/", LoginView.as_view(), name="login"),
+    
+    path("resultados/", EvaluarAtencionView.as_view(), name="evaluar-atencion"),
 ]

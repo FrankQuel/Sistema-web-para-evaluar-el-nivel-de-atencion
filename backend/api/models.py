@@ -106,3 +106,15 @@ class Matricula(models.Model):
         managed = False
         db_table = 'matricula'
         unique_together = (('id_est', 'id_cl'),)
+
+class ResultadosEvaluacion(models.Model):
+    id_re = models.BigAutoField(primary_key=True)
+    atencion_ia_re = models.CharField(max_length=60)
+    nivelaten_re = models.CharField(max_length=20)
+    fechaeva_re = models.DateTimeField(auto_now_add=True)
+    id_est = models.ForeignKey('Estudiante', models.DO_NOTHING, db_column='id_est')
+    id_cl  = models.ForeignKey('Clase', models.DO_NOTHING, db_column='id_cl')
+
+    class Meta:
+        managed = False
+        db_table = 'resultadosevaluacion'
