@@ -1,8 +1,7 @@
 {
-  "/admin/dashboard/page": "app/admin/dashboard/page.js",
-  "/docente/curso/[id]/page": "app/docente/curso/[id]/page.js",
-  "/docente/page": "app/docente/page.js",
-  "/docente/login/page": "app/docente/login/page.js",
-  "/page": "app/page.js",
-  "/docente/dashboard/page": "app/docente/dashboard/page.js"
+  "/estudiante/dashboard/page": "app/estudiante/dashboard/page.js",
+  "/estudiante/login/page": "app/estudiante/login/page.js",
+  "/estudiante/curso/[id]/page": "app/estudiante/curso/[id]/page.js",
+  "/admin/login/page": "app/admin/login/page.js",
+  "/page": "app/page.js"
 }
