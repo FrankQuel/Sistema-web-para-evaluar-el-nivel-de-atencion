@@ -8,6 +8,13 @@ from .serializers import (
     DocenteRegistroSerializer, EstudianteRegistroSerializer,
     CursoSerializer, ClaseSerializer, MatriculaSerializer
 )
+from rest_framework import views, status
+from rest_framework.response import Response
+from .serializers import ResultadoEvalCreateSerializer, ResultadoEvalSerializer
+from .models import ResultadosEvaluacion
+from ia.attention_model_rf import RandomForestAttentionModel, heuristic_label, recommend_from_label
+import os
+
 
 # ----------------- LOGIN POR ROL -----------------
 class LoginView(APIView):
@@ -113,3 +120,53 @@ class MatriculaListCreateView(generics.ListCreateAPIView):
 class MatriculaDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Matricula.objects.select_related('id_est', 'id_cl', 'id_cl__id_cur', 'id_cl__id_dce')
     serializer_class = MatriculaSerializer
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), 'MODELS', 'modelo_rf_v1.joblib')
+_rf = None
+try:
+    _rf = RandomForestAttentionModel.load(MODEL_PATH)
+    _MODEL_TAG = "RF_v1"
+except Exception:
+    _MODEL_TAG = "Heuristica_v1"
+    
+class EvaluarAtencionView(views.APIView):
+    def post(self, request):
+        s = ResultadoEvalCreateSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        id_est = s.validated_data['id_est']
+        id_cl  = s.validated_data['id_cl']
+        metrics = s.validated_data['metrics']
+        
+        if not s.is_valid():
+            return Response({"ok": False, "errors": s.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Predicción
+        if _rf:
+            nivel = _rf.predict_label_from_metrics(metrics)
+            recomend = {
+                "ATENTO":"Buen enfoque. Pausas cada 15–20 min.",
+                "NEUTRO":"Atención variable. Resúmenes + checks.",
+                "DISTRAIDO":"Actividades interactivas y segmentar."
+            }.get(nivel, "—")
+        else:
+            # fallback heurístico (usa tu lógica si quieres)
+            from ia.attention_model_rf import heuristic_label
+            nivel = heuristic_label(metrics)
+            recomend = {
+                "ATENTO":"Buen enfoque. Pausas cada 15–20 min.",
+                "NEUTRO":"Atención variable. Resúmenes + checks.",
+                "DISTRAIDO":"Actividades interactivas y segmentar."
+            }.get(nivel, "—")
+
+        obj = ResultadosEvaluacion.objects.create(
+            atencion_ia_re=recomend[:20],
+            nivelaten_re=nivel[:20],
+            id_est_id=id_est,
+            id_cl_id=id_cl
+        )
+        return Response({
+            "modelo": _MODEL_TAG,
+            "nivel": nivel,
+            "recomendacion": recomend,
+            "resultado": ResultadoEvalSerializer(obj).data
+        }, status=status.HTTP_201_CREATED)

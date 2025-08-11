@@ -4,7 +4,7 @@ from django.db import transaction
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 
-from .models import Usuario, Estudiante, Docente, Curso, Clase, Matricula
+from .models import Usuario, Estudiante, Docente, Curso, Clase, Matricula, ResultadosEvaluacion
 
 
 # ===== DOCENTE =====
@@ -190,3 +190,14 @@ class MatriculaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Matricula
         fields = ('id_mat', 'id_est', 'id_cl', 'fecha', 'estudiante', 'clase', 'curso', 'docente')
+        
+class ResultadoEvalCreateSerializer(serializers.Serializer):
+    id_est = serializers.IntegerField()
+    id_cl  = serializers.IntegerField()
+    metrics = serializers.DictField()
+
+class ResultadoEvalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ResultadosEvaluacion
+        fields = ('id_re','atencion_ia_re','nivelaten_re','fechaeva_re','id_est','id_cl')
+        read_only_fields = ('id_re','fechaeva_re')
