@@ -53,7 +53,7 @@ export default function EstudianteLoginPage() {
     const allOk = Object.values(reg).every(v => String(v).trim() !== '')
     if (!allOk) return alert('Completa todos los campos')
     try {
-      const res = await fetch('http://127.0.0.1:8000/api/registro-estudiante/', {
+      const res = await fetch('http://127.0.0.1:8000/api/estudiantes/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,7 +75,7 @@ export default function EstudianteLoginPage() {
       }
       alert('Estudiante registrado correctamente')
       setOpen(false)
-      router.push('/estudiante')
+      router.push('/estudiante/login')
     } catch (e) {
       alert('Error de conexión con el backend')
       console.error(e)
