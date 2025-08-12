@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { BookOpen, Play, Clock, LogOut, Eye } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -97,16 +96,7 @@ export default function EstudianteDashboard() {
             </CardHeader>
             <CardContent><div className="text-2xl font-bold">{clases.length}</div></CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Progreso (demo)</CardTitle>
-              <Eye className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{cursos.length ? 100 : 0}%</div>
-              <Progress value={cursos.length ? 100 : 0} className="w-full" />
-            </CardContent>
-          </Card>
+          
         </div>
 
         {/* Cursos */}

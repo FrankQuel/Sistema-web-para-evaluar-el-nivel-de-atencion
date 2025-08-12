@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { ArrowLeft, Play, Clock, ExternalLink, Video, BookOpen } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
 import { listMatriculas, listClases, createResultadoEvaluacion } from '@/app/lib/api'
@@ -63,6 +65,13 @@ function toYouTubeEmbed(raw: string | null | undefined): string | null {
   return id ? addAPI(`https://www.youtube.com/embed/${id}`) : null
 }
 
+type ResultadoResp = {
+  nivel: string
+  recomendacion: string
+  resultado_id?: number
+  resultado: any
+}
+
 export default function CursoEstudiante() {
   const router = useRouter()
   const params = useParams() as { id: string }
@@ -73,6 +82,9 @@ export default function CursoEstudiante() {
   const [running, setRunning] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [durationSec, setDurationSec] = useState<number>(60)
+
+  const [resultado, setResultado] = useState<ResultadoResp | null>(null)
+  const [openRes, setOpenRes] = useState(false)
 
   const iframeId = 'yt-iframe'
   const { ready, play, pause, getDuration, addOnStateChange } = useYouTube(iframeId)
@@ -98,7 +110,6 @@ export default function CursoEstudiante() {
   const cursoNombre = useMemo(() => clases[0]?.curso || 'Curso', [clases])
   const embedUrl = useMemo(() => toYouTubeEmbed(claseActual?.video_cl || null), [claseActual])
 
-  // detener análisis si el player emite ENDED
   useEffect(() => {
     if (!ready) return
     const off = addOnStateChange((state) => {
@@ -111,7 +122,6 @@ export default function CursoEstudiante() {
 
   const iniciarAnalisis = async () => {
     if (!embedUrl) return alert('No hay video válido para embeber.')
-    // lee duración real
     let dur = getDuration()
     if (!dur || dur < 1) {
       await new Promise(r => setTimeout(r, 400))
@@ -123,23 +133,24 @@ export default function CursoEstudiante() {
     setRunning(true)
   }
 
-  // >>> Envía solamente lo que el backend espera (id_est, id_cl, metrics)
   const onFinish = async (out: AnalisisOut) => {
     if (!userData || !claseActual) return
     setGuardando(true)
     try {
-      const resp = await createResultadoEvaluacion({
+      const resp: ResultadoResp = await createResultadoEvaluacion({
         id_est: Number(userData.profile_id),
         id_cl: Number(claseActual.id_cl),
-        metrics: out.metrics, // objeto con tus métricas del analizador
+        metrics: out.metrics,
       })
-      // el backend devuelve { modelo, nivel, recomendacion, resultado }
-      alert(`Resultado\nNivel: ${resp.nivel}\nRecomendación: ${resp.recomendacion}`)
+      setResultado(resp)
+      setOpenRes(true)
     } catch (e) {
       console.error(e)
       alert('No se pudo guardar el resultado. Revisa el backend/CORS.')
     } finally {
       setGuardando(false)
+      setRunning(false)
+      pause?.()
     }
   }
 
@@ -280,6 +291,39 @@ export default function CursoEstudiante() {
           </div>
         </div>
       </div>
+
+      {/* ---- Modal de Resultados ---- */}
+      <Dialog open={openRes} onOpenChange={setOpenRes}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Resultados de su evaluación</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4 bg-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">{claseActual?.nombre_cl ?? 'Clase'}</h3>
+                <Badge variant="secondary">Atención</Badge>
+              </div>
+              <Separator className="my-3" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Nivel de atención</p>
+                  <p className="text-xl font-bold">{resultado?.nivel ?? '-'}</p>
+                </div>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm text-muted-foreground">Recomendación</p>
+                <p className="mt-1 leading-relaxed">{resultado?.recomendacion ?? '-'}</p>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-end">
+            <Button variant="outline" onClick={() => setOpenRes(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

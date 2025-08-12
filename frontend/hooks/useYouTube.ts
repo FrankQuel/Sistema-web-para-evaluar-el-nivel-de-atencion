@@ -1,66 +1,109 @@
-import { useEffect, useRef, useState } from 'react'
+// hooks/useYouTube.ts
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-type YTPlayer = any
+type YTPlayer = {
+  getDuration?: () => number;
+  playVideo?: () => void;
+  pauseVideo?: () => void;
+  addEventListener?: (ev: string, fn: (e: any) => void) => void;
+  removeEventListener?: (ev: string, fn: (e: any) => void) => void;
+  destroy?: () => void;
+};
 
 declare global {
   interface Window {
-    YT?: any
-    onYouTubeIframeAPIReady?: () => void
+    YT?: any;
+    onYouTubeIframeAPIReady?: () => void;
   }
 }
 
+function ensureApiLoaded(): Promise<void> {
+  return new Promise((resolve) => {
+    // Ya cargada
+    if (window.YT && window.YT.Player) return resolve();
+
+    // ¿script ya insertado?
+    const existing = document.querySelector<HTMLScriptElement>('script[src*="youtube.com/iframe_api"]');
+    if (existing) {
+      // Espera a que se inicialice
+      const check = () => (window.YT && window.YT.Player) ? resolve() : setTimeout(check, 50);
+      check();
+      return;
+    }
+
+    // Inserta script
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+
+    window.onYouTubeIframeAPIReady = () => resolve();
+  });
+}
+
 export function useYouTube(iframeId: string) {
-  const playerRef = useRef<YTPlayer | null>(null)
-  const [ready, setReady] = useState(false)
+  const playerRef = useRef<YTPlayer | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let disposed = false
+    let cancelled = false;
 
-    const ensureAPI = () =>
-      new Promise<void>((resolve) => {
-        if (window.YT && window.YT.Player) return resolve()
-        const tag = document.createElement('script')
-        tag.src = 'https://www.youtube.com/iframe_api'
-        document.body.appendChild(tag)
-        window.onYouTubeIframeAPIReady = () => resolve()
-      })
+    (async () => {
+      await ensureApiLoaded();
+      if (cancelled) return;
 
-    ensureAPI().then(() => {
-      if (disposed) return
-      const iframe = document.getElementById(iframeId)
-      if (!iframe) return
-      playerRef.current = new window.YT.Player(iframe, {
-        events: {
-          onReady: () => setReady(true),
-        },
-      })
-    })
+      const el = document.getElementById(iframeId) as HTMLIFrameElement | null;
+      // No crees el player si el iframe no existe o aún no tiene src
+      if (!el || !el.src) return;
+
+      // Evita crear dos veces
+      if (playerRef.current) return;
+
+      try {
+        // @ts-ignore
+        const p: YTPlayer = new window.YT.Player(iframeId, {
+          events: {
+            onReady: () => { if (!cancelled) setReady(true); },
+          },
+        });
+        playerRef.current = p;
+      } catch {
+        // Si falla la construcción, no rompas la app
+        playerRef.current = null;
+      }
+    })();
 
     return () => {
-      disposed = true
-      try { playerRef.current?.destroy?.() } catch {}
-      playerRef.current = null
-      setReady(false)
+      cancelled = true;
+      const p = playerRef.current;
+      // Destruye con seguridad
+      try { p?.destroy?.(); } catch {}
+      playerRef.current = null;
+      setReady(false);
+    };
+  }, [iframeId]);
+
+  const play = useCallback(() => playerRef.current?.playVideo?.(), []);
+  const pause = useCallback(() => playerRef.current?.pauseVideo?.(), []);
+  const getDuration = useCallback(() => playerRef.current?.getDuration?.() ?? 0, []);
+
+  const addOnStateChange = useCallback((handler: (state: number) => void) => {
+    const p = playerRef.current;
+    if (!p || typeof p.addEventListener !== 'function') {
+      // player no listo; devuelve un "off" vacío
+      return () => {};
     }
-  }, [iframeId])
-
-  const play = () => playerRef.current?.playVideo?.()
-  const pause = () => playerRef.current?.pauseVideo?.()
-  const getDuration = () => Number(playerRef.current?.getDuration?.() ?? 0)
-  const getCurrentTime = () => Number(playerRef.current?.getCurrentTime?.() ?? 0)
-
-  const addOnStateChange = (cb: (state: number) => void) => {
-    if (!playerRef.current) return () => {}
-    const p = playerRef.current
-    const handler = (e: any) => cb(e?.data)
-    // compatible con IFrame API
+    // YT emite 'onStateChange'
     // @ts-ignore
-    p.addEventListener?.('onStateChange', handler)
-    return () => {
-      // @ts-ignore
-      p.removeEventListener?.('onStateChange', handler)
-    }
-  }
+    p.addEventListener('onStateChange', handler);
 
-  return { ready, play, pause, getDuration, getCurrentTime, addOnStateChange }
+    return () => {
+      const cur = playerRef.current;
+      try {
+        // @ts-ignore
+        cur?.removeEventListener?.('onStateChange', handler);
+      } catch {}
+    };
+  }, []);
+
+  return { ready, play, pause, getDuration, addOnStateChange };
 }

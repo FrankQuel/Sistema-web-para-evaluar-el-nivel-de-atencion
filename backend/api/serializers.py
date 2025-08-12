@@ -197,7 +197,8 @@ class ResultadoEvalCreateSerializer(serializers.Serializer):
     metrics = serializers.DictField()
 
 class ResultadoEvalSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source='pk', read_only=True)
     class Meta:
         model = ResultadosEvaluacion
-        fields = ('id_re','atencion_ia_re','nivelaten_re','fechaeva_re','id_est','id_cl')
+        fields = ('id','id_re','atencion_ia_re','nivelaten_re','fechaeva_re','id_est','id_cl')
         read_only_fields = ('id_re','fechaeva_re')
