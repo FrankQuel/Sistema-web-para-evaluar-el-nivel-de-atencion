@@ -211,3 +211,10 @@ export async function createResultadoEvaluacion(input: {
   })
   return safeJson<any>(res)
 }
+
+export function getResultadoId(r: any): number | null {
+  if (!r) return null
+  if (typeof r.resultado_id === 'number') return r.resultado_id
+  const obj = r.resultado ?? {}
+  return obj.id ?? obj.id_re ?? obj.pk ?? null
+}
